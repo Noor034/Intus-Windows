@@ -1,0 +1,18 @@
+Columns:
+- transaction_year: Year of the transaction.
+- transaction_month: Month of the transaction.
+- category: Product category.
+- unique_customers: Count of distinct customers.
+- total_revenue: Total revenue generated.
+- total_cost: Total cost incurred.
+- total_marketing_cost: Total marketing cost incurred.
+- total_marketing_events: Number of marketing events.
+- revenue_to_cost_ratio: Ratio of total revenue to total cost.
+Enhancements:
+- Incremental Processing: Only new transactions are processed.
+- Performance Optimization: Added referential integrity and revenue-cost sanity checks.
+- Reusable Macro: “revenue_to_cost_ratio” handles revenue-to-cost calculations
+dynamically.
+Assumptions:
+- Marketing events are aggregated at the month level.
+- Revenue-to-cost ratio is set to 0 if cost is 0.
