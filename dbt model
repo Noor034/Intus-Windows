@@ -1,0 +1,69 @@
+{{ config(
+materialized='incremental',
+unique_key='transaction_id'
+) }}
+WITH sales AS (
+SELECT
+transaction_id,
+product_id,
+user_id,
+transaction_timestamp,
+revenue,
+cost,
+EXTRACT(YEAR FROM transaction_timestamp) AS transaction_year,
+EXTRACT(MONTH FROM transaction_timestamp) AS transaction_month
+FROM {{ source('raw', 'sales_transactions') }}
+{% if is_incremental() %}
+WHERE transaction_timestamp > (SELECT MAX(transaction_timestamp) FROM {{ this }})
+{% endif %}
+),
+products AS (
+SELECT
+product_id,
+product_name,
+category
+FROM {{ source('raw', 'product_catalog') }}
+),
+marketing AS (
+SELECT
+event_id,
+user_id,
+event_type,
+event_timestamp,
+channel,
+campaign,
+cost,
+EXTRACT(YEAR FROM event_timestamp) AS event_year,
+EXTRACT(MONTH FROM event_timestamp) AS event_month
+FROM {{ source('raw', 'marketing_events') }}
+),
+marketing_aggregated AS (
+SELECT
+event_year,
+event_month,
+SUM(cost) AS total_marketing_cost,
+COUNT(event_id) AS total_marketing_events
+FROM marketing
+GROUP BY event_year, event_month
+),
+sales_summary AS (
+SELECT
+s.transaction_year,
+s.transaction_month,
+p.category,
+COUNT(DISTINCT s.user_id) AS unique_customers,
+SUM(s.revenue) AS total_revenue,
+SUM(s.cost) AS total_cost,
+COALESCE(ma.total_marketing_cost, 0) AS total_marketing_cost,
+COALESCE(ma.total_marketing_events, 0) AS total_marketing_events,
+{{ revenue_to_cost_ratio('SUM(s.revenue)', 'SUM(s.cost)') }} AS revenue_to_cost_ratio
+FROM sales s
+LEFT JOIN products p ON s.product_id = p.product_id
+LEFT JOIN marketing_aggregated ma
+ON s.transaction_year = ma.event_year
+AND s.transaction_month = ma.event_month
+GROUP BY s.transaction_year, s.transaction_month, p.category,
+ma.total_marketing_cost, ma.total_marketing_events
+HAVING SUM(s.revenue) > 0
+)
+SELECT * FROM sales_summary;
