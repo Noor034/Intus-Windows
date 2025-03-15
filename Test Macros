@@ -1,0 +1,21 @@
+{{ config(
+tests=[
+{ 'unique': ['transaction_id'] },
+{ 'not_null': ['user_id', 'product_id', 'category'] },
+{ 'accepted_range': {'total_marketing_cost': [0, None], 'total_revenue': [0, None]} },
+{ 'relationships': { 'from': 'product_id', 'to': 'raw.product_catalog.product_id' } },
+{ 'expression': 'total_revenue >= total_cost' }
+]
+) }}
+-- dbt Macro: extract_year_month
+{% macro extract_year_month(column) %}
+EXTRACT(YEAR FROM {{ column }}) AS year, EXTRACT(MONTH FROM {{ column }})
+AS month
+{% endmacro %}
+-- dbt Macro: revenue_to_cost_ratio
+{% macro revenue_to_cost_ratio(revenue, cost) %}
+CASE
+WHEN {{ cost }} > 0 THEN ({{ revenue }} / {{ cost }})
+ELSE 0
+END
+{% endmacro %}
